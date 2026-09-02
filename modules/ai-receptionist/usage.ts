@@ -100,21 +100,27 @@ export async function getAiReceptionistConsoleData(): Promise<AiReceptionistCons
     if (!subByClient.has(sub.clientId)) subByClient.set(sub.clientId, sub);
   }
 
-  // Used seconds per subscription for its own billing window.
+  // Used seconds per subscription for its own billing window — ONE grouped
+  // aggregate query for every subscription, not one query per client. Each
+  // OR branch pins both the subscription and its own billing window, so no
+  // subscription's calls leak into another's total.
+  const activeSubs = [...subByClient.values()];
   const usedSecondsBySub = new Map<string, number>();
-  await Promise.all(
-    [...subByClient.values()].map(async (sub) => {
-      const { start, end } = periodBounds(sub);
-      const agg = await prisma.callLog.aggregate({
-        _sum: { durationSeconds: true },
-        where: {
-          subscriptionId: sub.id,
-          startedAt: { gte: start, lt: end },
-        },
-      });
-      usedSecondsBySub.set(sub.id, agg._sum.durationSeconds ?? 0);
-    }),
-  );
+  if (activeSubs.length > 0) {
+    const grouped = await prisma.callLog.groupBy({
+      by: ["subscriptionId"],
+      _sum: { durationSeconds: true },
+      where: {
+        OR: activeSubs.map((sub) => {
+          const { start, end } = periodBounds(sub);
+          return { subscriptionId: sub.id, startedAt: { gte: start, lt: end } };
+        }),
+      },
+    });
+    for (const g of grouped) {
+      usedSecondsBySub.set(g.subscriptionId, g._sum.durationSeconds ?? 0);
+    }
+  }
 
   let activeClinics = 0;
   let suspendedClinics = 0;
@@ -126,7 +132,9 @@ export async function getAiReceptionistConsoleData(): Promise<AiReceptionistCons
     const assignedMinutes = sub?.entitlements[0]?.intValue ?? 0;
     const usedSeconds = sub ? (usedSecondsBySub.get(sub.id) ?? 0) : 0;
     const usedMinutes = secondsToDisplayMinutes(usedSeconds);
-    const remainingMinutes = assignedMinutes - usedMinutes;
+    // Never surface a negative balance — overage is conveyed by usagePercent
+    // (> 100) and the QUOTA_REACHED state instead.
+    const remainingMinutes = Math.max(assignedMinutes - usedMinutes, 0);
     const serviceStatus: ServiceStatus = sub ? sub.status : "NOT_ENROLLED";
 
     if (sub?.status === "ACTIVE") activeClinics += 1;

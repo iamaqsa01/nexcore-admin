@@ -3,14 +3,17 @@
 Super Admin dashboard for **NexCore**, an AI Voice Receptionist SaaS for clinics.
 This repository contains **only** the Super Admin dashboard.
 
-> **Status: Phase 7 — live usage + production polish.** The Overview and
-> Usage pages are now fully DB-driven (active/suspended clinics, minutes
-> consumed, per-client usage) and refresh themselves every 20s via
-> `router.refresh()` (no websockets). Each client shows a labelled + iconed
-> usage state (Normal / Near limit / Quota reached / Suspended). Every
-> data-backed section has a loading skeleton, empty state, and an error
-> boundary with retry. Client bundles verified free of `DATABASE_URL` /
-> `AUTH_SECRET` / `ADMIN_SERVICE_SECRET`. See "Roadmap" below.
+> **Status: Phase 8 — live usage hardening.** The Overview and Usage pages
+> are fully DB-driven (active/suspended clinics, minutes consumed, per-client
+> usage) and refresh themselves every 20s via `router.refresh()` (no
+> websockets). Per-client usage is now aggregated in a **single grouped
+> `CallLog` query** (no per-client N+1), and `remainingMinutes` is clamped at
+> `0` — overage is shown via `usagePercent` (> 100%) and the QUOTA_REACHED
+> state. Each client shows a labelled + iconed usage state (Normal / Near
+> limit / Quota reached / Suspended). Every data-backed section has a loading
+> skeleton, empty state, and an error boundary with retry. Client bundles
+> verified free of `DATABASE_URL` / `AUTH_SECRET` / `ADMIN_SERVICE_SECRET`.
+> See "Roadmap" below.
 
 ## Tech stack
 
@@ -288,7 +291,8 @@ npm run admin:create
 - **Phase 5** ✅ — AI Receptionist module: per-clinic monthly talk-time quota (`SubscriptionEntitlement`), current-period usage from `CallLog.durationSeconds`, dashboard stats, and a DB-backed service on/off toggle (`Subscription.status`). Auto-enrols a client (creates its AI Receptionist `Subscription`) on first quota assignment.
 - **Phase 6** ✅ — NexCore Python/FastAPI backend (`backend/`): server-to-server session authorization + quota enforcement (client kill switch, subscription status, monthly talk-time quota), `SELECT … FOR UPDATE` + `IN_PROGRESS` `CallLog` reservations for concurrency safety, `X-Service-Token` auth. 32 backend tests. Panel integration via `server/backend/client.ts` + one proxy route.
 - **Phase 7** ✅ — Live usage + polish: DB-driven Overview + Usage pages, 20s `router.refresh()` auto-updates, labelled+iconed usage states, loading/empty/error+retry on every data section, client-bundle secret scan (clean).
-- **Phase 8+** — AI Receptionist voice runtime integration (real `/sessions` calls + `/complete`), call-flow / phone-number / prompt configuration, audit-log viewer UI.
+- **Phase 8** ✅ — Live usage hardening: per-client usage aggregation collapsed from one `CallLog` query per client to a **single grouped query** (per-subscription billing window pinned inside each `OR` branch); `remainingMinutes` clamped at `0` (overage shown via `usagePercent` + QUOTA_REACHED); zero-quota / empty-data paths re-verified NaN/Infinity-free. No schema, API-surface, or auth changes.
+- **Phase 9+** — AI Receptionist voice runtime integration (real `/sessions` calls + `/complete`), call-flow / phone-number / prompt configuration, audit-log viewer UI.
 
 ### Migrations
 

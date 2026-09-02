@@ -22,6 +22,9 @@ yarn-error.log*
 # local env files
 .env
 .env*.local
+.env.production
+.env.development
+.env.test
 
 # python backend
 /backend/.venv

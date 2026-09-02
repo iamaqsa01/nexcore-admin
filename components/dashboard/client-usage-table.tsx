@@ -73,12 +73,7 @@ export function ClientUsageTable({ rows }: { rows: ClientUsageRow[] }) {
               <TableCell className="whitespace-nowrap text-right tabular-nums">
                 {formatNumber(row.usedMinutes)}
               </TableCell>
-              <TableCell
-                className={cn(
-                  "whitespace-nowrap text-right tabular-nums",
-                  row.enrolled && row.remainingMinutes < 0 && "text-danger",
-                )}
-              >
+              <TableCell className="whitespace-nowrap text-right tabular-nums">
                 {row.enrolled ? formatNumber(row.remainingMinutes) : "—"}
               </TableCell>
               <TableCell className="text-right">

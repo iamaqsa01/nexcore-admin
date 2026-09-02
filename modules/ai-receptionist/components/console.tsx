@@ -232,12 +232,7 @@ function UsageRow({
       <TableCell className="text-right tabular-nums">
         {formatNumber(row.usedMinutes)}
       </TableCell>
-      <TableCell
-        className={cn(
-          "text-right tabular-nums",
-          row.enrolled && row.remainingMinutes < 0 && "text-danger",
-        )}
-      >
+      <TableCell className="text-right tabular-nums">
         {row.enrolled ? formatNumber(row.remainingMinutes) : "—"}
       </TableCell>
       <TableCell className="text-right">
